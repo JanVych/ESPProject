@@ -16,6 +16,7 @@ class Application:
         #self.wifi_password = "dimetylhydrazin"
         self.ip_address = "37.46.208.212"
         self.port = 8070
+        x=10
         self.database = "pracovni_server"
         self.user = "gazix@email.cz"
         self.password = "0J11w$<B_/d)TEh"
