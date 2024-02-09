@@ -4,7 +4,7 @@ import os
 
 
 class Config:
-    def __init__(self, file_path: str) -> None:
+    def __init__(self, file_path: str):
         self.file_path = file_path
         try:
             with open(self.file_path, "r") as file:
