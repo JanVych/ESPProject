@@ -1,5 +1,4 @@
 import time
-from typing import Tuple
 
 import network
 import json
@@ -21,7 +20,7 @@ class Wlan:
     def wifi_connect(self, ssid: str = None, password: str = None) -> None:
         if self.wifi.isconnected() and (not ssid or ssid == self.wifi_ssid):
             return
-        self.wifi_ssid = ssid if ssid is not None else self.wifi_password
+        self.wifi_ssid = ssid if ssid is not None else self.wifi_ssid
         self.wifi_password = password if password is not None else self.wifi_password
 
         self.wifi.active(True)
@@ -36,12 +35,6 @@ class Wlan:
                 return
         print(f"connected to {self.wifi_ssid}")
         print(f"network config: {self.wifi.ifconfig()}")
-
-    def wifi_connect(self, ssid: str, password: str) -> None:
-        self.wifi_disconnect()
-        self.wifi_ssid = ssid
-        self.wifi_password = password
-        self.wifi_connect()
 
     def wifi_disconnect(self) -> None:
         if self.wifi.active():
