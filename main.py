@@ -27,6 +27,7 @@ if __name__ == "__main__":
         led.value(button_state)
         #print(button_state)
         if button_state:
-            print("try read")
-            print(etatherm.get_real_temperature(1))
+            print("try read real temperature")
+            print(etatherm.get_real_temperature(8))
         sleep(0.1)
+        #print(hex(etatherm.read(1)))

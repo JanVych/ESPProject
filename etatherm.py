@@ -1,5 +1,6 @@
 import time
 import machine
+import gc
 
 # from constants import ETB, DLE, SOH
 
@@ -22,6 +23,9 @@ class Etatherm:
         :param device_address: in range from 0 to 15
         """
         ram_address = 0x60 + device_address
+        gc.collect()
+        print(f"collected")
+        print(gc.mem_alloc())
         return self.get_temperature(device_address, ram_address)
 
     def get_desired_temperature(self, device_address: int) -> int:
@@ -45,7 +49,7 @@ class Etatherm:
         """
         if device_address not in range(0, 16):
             raise ValueError
-        data = self.read_data(self.station_address, ram_address, 2)
+        data = self.read_data(self.station_address, ram_address, 1)
         if device_address == 14:
             return 3 * (data[0] & 0xFF) + 5
         return (data[0] & 0xFF) + 5
@@ -58,10 +62,10 @@ class Etatherm:
         :param data_size:
         :return:
         """
-        command = ((data_size - 1) << 4) & 0xFF | 0x0C
+        command = ((data_size - 1) << 4) & 0xFF | 0x08
         try:
             self.send_frame(station_address, ram_address, command, bytearray(1))
-            response = self.read_frame(data_size * 2)
+            response = self.read_frame(data_size)
             return response
         except (OSError, ValueError) as exp:
             raise exp
@@ -78,7 +82,7 @@ class Etatherm:
         command = ((data_size - 1) << 4) & 0xFF | 0x0C
         try:
             self.send_frame(station_address, ram_address, command, bytearray(2))
-            response = self.read_frame(data_size * 2)
+            response = self.read_frame(data_size)
             print(f"response data {response}")
             return
         except (OSError, ValueError) as exp:
@@ -89,29 +93,41 @@ class Etatherm:
         :param data_size:
         :return:
         """
+        data_size *= 2
         timeout = time.time() + self.frame_timeout
-        buffer = bytearray(10 + data_size)
+        # 0xFF 0xFF DLE ETB Adr.Bus D0 data S0 S1 ADDS XORS
+        buffer = bytearray(6 + data_size + 4)
 
+        header = [0, 0, 0, 0]
         while time.time() < timeout:
-            if self.read(1) == 0xFF and self.read(1) == 0xFF and self.read(1) == DLE and self.read(1) == ETB:
-                buffer[0] = 0xFF
-                buffer[1] = 0xFF
-                buffer[2] = DLE
-                buffer[3] = ETB
+            header.insert(0, self.read(1))
+            header.pop()
+            print([hex(val) for val in header])
+            print(gc.mem_alloc())
+            if header[3] == 0xFF and header[2] == 0xFF and header[1] == DLE and header[0] == ETB:
+                buffer[0] = header[3]
+                buffer[1] = header[2]
+                buffer[2] = header[1]
+                buffer[3] = header[0]
                 data = self.read(2 + data_size + 4)
                 i = 4
                 for d in data:
                     buffer[i] = d
                     i += 1
 
+                print(f"frame received: {buffer}")
                 adds = 0x00
                 xors = 0x00
                 for b in buffer[2:-4]:
                     adds = (adds + b) & 0xFF
                     xors ^= b
-
                 if adds == buffer[6 + data_size + 2] and xors == buffer[6 + data_size + 3]:
-                    return buffer[8:-4]
+                    data = bytearray(int(data_size / 2))
+                    i = 0
+                    for j in range(6, 6 + data_size, 2):
+                        data[i] = buffer[j]
+                        i += 1
+                    return data
                 raise ValueError("crc error")
         raise OSError("Frame read timeout")
 
@@ -147,12 +163,14 @@ class Etatherm:
         buffer[data_size + 8] = xors
         buffer[data_size + 9] = 0xFF
 
+        print(f"send frame: {buffer}")
         self.bus.write(buffer)
 
     def read(self, n) -> bytes | int:
         result = self.bus.read(n)
         if result is not None:
             if n == 1:
+                print(hex(result[0]))
                 return result[0]
             return result
         raise OSError("Read timeout")
