@@ -7,7 +7,8 @@ class Config:
     def __init__(self, file_path: str):
         self.file_path = file_path
         try:
-            with open(self.file_path, "r") as file:
+            with open(self.file_path, "a+") as file:
+                file.seek(0)
                 config_string = file.read()
         except OSError:
             print(f"cant open file: {self.file_path}")
@@ -39,6 +40,6 @@ class Config:
         self.config[key] = value
         self.__save_file(json.dumps(self.config))
 
-    def get(self, key: str) -> object:
+    def get(self, key: str):
         if self.config:
             return self.config[key]

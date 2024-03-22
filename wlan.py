@@ -14,8 +14,7 @@ class Wlan:
         self.wifi_connection_timeout = 10
 
         self.access_point_ssid = "esp32-module"
-        self.access_point_password = None
-        self.access_point_security = 2
+        self.access_point_password = ""
 
     def wifi_connect(self, ssid: str = None, password: str = None) -> None:
         if self.wifi.isconnected() and (not ssid or ssid == self.wifi_ssid):
@@ -51,9 +50,10 @@ class Wlan:
 
     def access_point_up(self) -> None:
         self.access_point.active(True)
-        self.access_point.config(ssid=self.access_point_ssid,
-                                 password=self.access_point_password,
-                                 security=self.access_point_security)
+        self.access_point.config(essid=self.access_point_ssid,
+                                 password=self.access_point_password)
+        print("access point up")
 
     def access_point_down(self) -> None:
         self.access_point.active(False)
+        print("access point down")
