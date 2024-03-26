@@ -4,6 +4,8 @@ import socket
 import json
 
 import os
+from gc import mem_free
+import _thread
 
 import etatherm
 
@@ -20,7 +22,6 @@ from wlan import Wlan
 # access_point_password = "123456789"
 
 if __name__ == "__main__":
-
     led = Pin(14, Pin.OUT)
     button = Pin(27, Pin.IN)
 
@@ -28,6 +29,7 @@ if __name__ == "__main__":
 
     wlan = Wlan()
     config = Config("config.json")
+
 
     def try_connect():
         network_list = config.get("networks")
@@ -38,6 +40,19 @@ if __name__ == "__main__":
                 return
 
 
+    thread_active = True
+
+    def led_blink_loop():
+        b_led = Pin(2, Pin.OUT)
+        while thread_active:
+            b_led.value(1)
+            sleep(1)
+            b_led.value(0)
+            sleep(1)
+
+
+    pid = _thread.start_new_thread(led_blink_loop, ())
+
     try_connect()
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -46,6 +61,7 @@ if __name__ == "__main__":
 
     conn = None
     while True:
+        # print(f"free: {mem_free()} B")
         button_state = button.value()
         # led.value(button_state)
         # if button_state:
@@ -90,6 +106,8 @@ if __name__ == "__main__":
 
                 conn.send(json.dumps(response))
                 print(response)
+                conn.close()
+                conn = None
                 continue
             if request == "setDataAndConnect":
                 print("set data and connect")
@@ -111,14 +129,10 @@ if __name__ == "__main__":
                 config.set("networks", network_list)
                 wlan.access_point_down()
                 wlan.wifi_connect(ssid, password)
+                conn.close()
                 conn = None
                 if wlan.wifi.isconnected():
                     print(f"connected to {ssid}")
                     continue
 
-
-
-
-
-            # conn.send(b"Hello from ESP")
         sleep(0.1)
