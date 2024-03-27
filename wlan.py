@@ -40,7 +40,7 @@ class Wlan:
             self.wifi.active(False)
             print("disconnected from wifi")
 
-    def available_networks(self) -> list[tuple[str, bytes, int, int, int]]:
+    def available_networks(self) -> tuple[str, bytes, int, int, int]:
         if not self.wifi.active():
             self.wifi.active(True)
             networks = self.wifi.scan()
