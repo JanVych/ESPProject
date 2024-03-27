@@ -1,5 +1,12 @@
 import sys
 import socket
+
+import json
+
+import os
+from gc import mem_free
+import _thread
+
 import etatherm
 
 from machine import Pin
@@ -15,7 +22,6 @@ from wlan import Wlan
 # access_point_password = "123456789"
 
 if __name__ == "__main__":
-
     led = Pin(14, Pin.OUT)
     button = Pin(27, Pin.IN)
 
@@ -26,13 +32,26 @@ if __name__ == "__main__":
 
 
     def try_connect():
-        networks = config.get("networks")
-        for n in networks:
-            wlan.wifi_connect(n["ssid"], n["password"])
+        network_list = config.get("networks")
+        for nw in network_list:
+            wlan.wifi_connect(nw["ssid"], nw["password"])
             if wlan.wifi.isconnected():
                 print("connected")
                 return
 
+
+    thread_active = True
+
+    def led_blink_loop():
+        b_led = Pin(2, Pin.OUT)
+        while thread_active:
+            b_led.value(1)
+            sleep(1)
+            b_led.value(0)
+            sleep(1)
+
+
+    pid = _thread.start_new_thread(led_blink_loop, ())
 
     try_connect()
 
@@ -40,7 +59,9 @@ if __name__ == "__main__":
     s.bind(('', 34197))
     s.listen(5)
 
+    conn = None
     while True:
+        # print(f"free: {mem_free()} B")
         button_state = button.value()
         # led.value(button_state)
         # if button_state:
@@ -50,10 +71,68 @@ if __name__ == "__main__":
             wlan.wifi_disconnect()
             wlan.access_point_up()
         if wlan.access_point.active():
-            conn, addr = s.accept()
-            print(f"Got a connection from {str(addr)}")
+            if conn is None:
+                print("waiting to connection")
+                conn, addr = s.accept()
+                print(f"Got a connection from {str(addr)}")
             data = conn.recv(1024)
             print(f"Content = {str(data)}")
 
-            conn.send(b"Hello from ESP")
+            json_data = json.loads(data)
+            try:
+                request = json_data["header"]
+            except KeyError:
+                print("unknown data")
+                continue
+
+            if request == "getInfo":
+                print("request for info")
+                info = os.uname()
+                networks = []
+                for n in wlan.available_networks():
+                    if n[0]:
+                        networks.append(n[0].decode("utf-8"))
+                networks_string = ",".join(networks)
+
+                response = {"deviceId": config.get("deviceId"),
+                            "deviceName": config.get("deviceName"),
+                            "networks": networks_string,
+                            "sysName": info[0],
+                            "nodeName": info[1],
+                            "release": info[2],
+                            "version": info[3],
+                            "machine": info[4]
+                            }
+
+                conn.send(json.dumps(response))
+                print(response)
+                conn.close()
+                conn = None
+                continue
+            if request == "setDataAndConnect":
+                print("set data and connect")
+                print(json_data)
+                config.set("deviceId", json_data["deviceId"])
+                config.set("deviceName", json_data["deviceName"])
+                ssid = json_data["wifiSsid"]
+                password = json_data["wifiPassword"]
+
+                network_list = config.get("networks")
+                for index, n in enumerate(network_list):
+                    if n["ssid"] == ssid:
+                        n["password"] = password
+                        break
+                    if index == len(network_list) - 1:
+                        network_list.append({"ssid": ssid, "password": password})
+                        break
+
+                config.set("networks", network_list)
+                wlan.access_point_down()
+                wlan.wifi_connect(ssid, password)
+                conn.close()
+                conn = None
+                if wlan.wifi.isconnected():
+                    print(f"connected to {ssid}")
+                    continue
+
         sleep(0.1)

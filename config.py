@@ -12,6 +12,7 @@ class Config:
                 config_string = file.read()
         except OSError:
             print(f"cant open file: {self.file_path}")
+            return
         try:
             self.config = json.loads(config_string)
         except ValueError:
@@ -42,4 +43,7 @@ class Config:
 
     def get(self, key: str):
         if self.config:
-            return self.config[key]
+            try:
+                return self.config[key]
+            except KeyError:
+                return None
