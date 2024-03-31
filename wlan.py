@@ -1,13 +1,11 @@
-import time
-
-import network
-import json
+from time import time
+from network import WLAN, STA_IF, AP_IF
 
 
 class Wlan:
     def __init__(self):
-        self.wifi = network.WLAN(network.STA_IF)
-        self.access_point = network.WLAN(network.AP_IF)
+        self.wifi = WLAN(STA_IF)
+        self.access_point = WLAN(AP_IF)
 
         self.wifi_ssid = ""
         self.wifi_password = ""
@@ -28,11 +26,11 @@ class Wlan:
             self.wifi.connect(self.wifi_ssid, self.wifi_password)
         except OSError as e:
             print(e)
-        timer = time.time() + self.wifi_connection_timeout
+        timer = time() + self.wifi_connection_timeout
 
         print(f"connecting to: {self.wifi_ssid}")
         while not self.wifi.isconnected():
-            if time.time() > timer:
+            if time() > timer:
                 print(f"connection failed, code: {self.wifi.status()}")
                 return
         print(f"connected to {self.wifi_ssid}")
