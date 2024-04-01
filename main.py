@@ -1,9 +1,10 @@
 from config import Config
 from wlan import Wlan
+from ecomax_simple import Ecomax
 
 from _thread import start_new_thread, exit
 from asyncio import start_server, StreamReader, StreamWriter, sleep
-from asyncio import run as asyncio_run
+from asyncio import run as asyncio_run, create_task
 from json import loads as json_loads
 from json import dumps as json_dumps
 
@@ -11,22 +12,19 @@ from machine import Pin
 from os import uname
 from gc import mem_free, mem_alloc, collect
 
-from time import sleep as tsleep
 
-thread_flag = False
-server_mode = True
+server_mode = False
 
 
-def thread_func():
+async def secondary_coroutine():
     b_led = Pin(2, Pin.OUT)
-    while thread_flag:
-        print(f"allocated: {mem_alloc()} B")
+    print("secondary enter")
+    while True:
         print(f"free: {mem_free()} B")
         b_led.value(1)
-        tsleep(1)
+        await sleep(1)
         b_led.value(0)
-        tsleep(1)
-    exit()
+        await sleep(1)
 
 
 async def handle_connection(reader: StreamReader, writer: StreamWriter,
@@ -95,15 +93,18 @@ async def handle_connection(reader: StreamReader, writer: StreamWriter,
 
 
 async def main():
+    global server_mode
+
+    task = create_task(secondary_coroutine())
+
     wlan = Wlan()
     config = Config("config.json")
     server = None
-    global server_mode
-    global thread_flag
-    pid = start_new_thread(thread_func, ())
 
     led = Pin(14, Pin.OUT)
     button = Pin(27, Pin.IN)
+
+    ecomax = Ecomax()
 
     while True:
         await sleep(0)
@@ -111,10 +112,10 @@ async def main():
         if button_state:
             print("button pressed")
             led.value(1)
-            server_mode = True
-            #thread_flag = False
-            wlan.wifi_disconnect()
-            collect()
+            ecomax.get_data()
+            print("get data end")
+            #server_mode = True
+            #wlan.wifi_disconnect()
             await sleep(1)
             led.value(0)
 
