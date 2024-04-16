@@ -1,13 +1,9 @@
-import sys
 import socket
 
 import json
 
 import os
-from gc import mem_free
 import _thread
-
-import etatherm
 
 from machine import Pin
 from time import sleep

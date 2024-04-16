@@ -1,6 +1,5 @@
 from machine import UART, Pin
-from time import ticks_ms, ticks_diff, ticks_add
-from helpers import reduce
+from main.helpers import reduce
 from struct import unpack
 from asyncio import sleep, create_task, StreamReader
 
@@ -11,7 +10,7 @@ DATA_BROADCAST_FRAME_TYPE = 0x08
 
 
 class Ecomax:
-    def __init__(self, rx=21, tx=22, interval_sec=6):
+    def __init__(self, rx=16, tx=17, interval_sec=6):
         self.interval_sec = interval_sec
         self.rx = rx
         self.tx = tx

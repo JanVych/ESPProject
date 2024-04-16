@@ -1,6 +1,6 @@
 from machine import UART, Pin
 from time import ticks_ms, ticks_diff, ticks_add
-from helpers import reduce
+from main.helpers import reduce
 from struct import unpack
 
 HEADER_START_DELIMITER = 0x68
@@ -10,7 +10,7 @@ DATA_BROADCAST_FRAME_TYPE = 0x08
 
 
 class Ecomax:
-    def __init__(self, rx, tx, timeout_ms=20000):
+    def __init__(self, rx=16, tx=17, timeout_ms=20000):
         self.timeout_ms = timeout_ms
         # self.__running_task = None
         # self.__running = False

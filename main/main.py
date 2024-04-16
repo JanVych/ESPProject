@@ -2,18 +2,16 @@ import gc
 
 from config import Config
 from wlan import Wlan
-from ecomax_simple_async import Ecomax
+from outer.ecomax_simple_async import Ecomax
 
-from _thread import start_new_thread, exit
 from asyncio import start_server, StreamReader, StreamWriter, sleep
 from asyncio import run as asyncio_run, create_task
 from json import loads as json_loads
 from json import dumps as json_dumps
 
-from machine import Pin, UART
+from machine import Pin
 from os import uname
-from gc import mem_free, mem_alloc, collect
-
+from gc import mem_free
 
 server_mode = False
 
@@ -22,7 +20,6 @@ async def secondary_coroutine():
     b_led = Pin(2, Pin.OUT)
     print("secondary enter")
     while True:
-        # value = UART(1, 115200, timeout=5000, rx=Pin(16), tx=Pin(17))
         print(f"free: {mem_free()} B")
         b_led.value(1)
         await sleep(1)
@@ -107,26 +104,23 @@ async def main():
     led = Pin(14, Pin.OUT)
     button = Pin(27, Pin.IN)
 
-    ecomax = Ecomax(16, 17)
+    #ecomax = Ecomax(16, 17)
 
     while True:
         await sleep(0)
         button_state = button.value()
         if button_state:
-            if ecomax.is_running():
-                await ecomax.stop()
-            else:
-                ecomax.run()
             print("button pressed")
             led.value(1)
-            #server_mode = True
-            #wlan.wifi_disconnect()
+            server_mode = True
+
             gc.collect()
             await sleep(1)
             led.value(0)
 
         if server_mode:
             if not server:
+                wlan.wifi_disconnect()
                 wlan.access_point_up()
                 server = await start_server(lambda r, w: handle_connection(r, w, wlan, config),
                                             "", 34197)

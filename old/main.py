@@ -1,9 +1,9 @@
 import sys
 import socket
 
-from config import Config
+from main.config import Config
 
-from wlan import Wlan
+from main.wlan import Wlan
 
 wifi_ssid = "TP-Link-29"
 wifi_password = "ac41.E9lz77"
