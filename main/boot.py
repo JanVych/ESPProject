@@ -10,3 +10,4 @@
 #print(platform.libc_ver())
 #print(os.uname())
 
+print(help("modules"))

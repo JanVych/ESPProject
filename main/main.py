@@ -2,7 +2,7 @@ import gc
 
 from config import Config
 from wlan import Wlan
-from outer.ecomax_simple_async import Ecomax
+from solutions.ecomax_simple_async import Ecomax
 
 from asyncio import start_server, StreamReader, StreamWriter, sleep
 from asyncio import run as asyncio_run, create_task

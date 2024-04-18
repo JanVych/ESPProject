@@ -17,7 +17,7 @@ class Ecomax:
         self.float_positions = [[78, "mixer-temperature", None], [94, "flue-temperature", None],
                                 [98, "tuv-temperature", None], [102, "boiler-temperature", None],
                                 [110, "accu-upper-temperature", None], [114, "accu-lower-temperature", None],
-                                [244, "lambda-state", None], [86, "outer-temperature", None],
+                                [244, "lambda-state", None], [86, "solutions-temperature", None],
                                 [248, "oxygen", None]]
 
     def get_data(self):
