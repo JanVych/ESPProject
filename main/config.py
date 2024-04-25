@@ -17,7 +17,7 @@ class Config:
             self.config = json_loads(config_string)
         except ValueError:
             config_string = "{}"
-            self.config = json_loads(config_string)
+            self.config = {}
         self.__save_file(config_string)
 
     def __save_file(self, json_string: str) -> None:
@@ -35,7 +35,7 @@ class Config:
 
     def clear_config(self) -> None:
         self.__save_file("{}")
-        self.config = json_loads("{}")
+        self.config = {}
 
     def set(self, key: str, value: object) -> None:
         self.config[key] = value

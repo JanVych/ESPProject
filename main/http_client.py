@@ -28,18 +28,12 @@ def destructure_url(url: str):
             "ssl": ssl}
 
 
-def build_head(url: str, method: str,
-               body: str = None, data_format: str = None) -> bytes:
+def build_head(url: str, method: str, body: str = None, data_format: str = None) -> bytes:
     url_params = destructure_url(url)
 
-    head = [f"{method} /{url_params['path']} HTTP/1.0",
-            f"Host: {url_params['host']}"]
-
+    head = [f"{method} /{url_params['path']} HTTP/1.0", f"Host: {url_params['host']}", f"Accept: */*"]
     if data_format == "json":
-        head.append(f"Accept: application/json")
-    else:
-        head.append(f"Accept: */*")
-
+        head.append(f"Content-Type: application/json")
     if body:
         head.append(f"Content-Length: {len(body)}")
     head.append("\r\n")
@@ -49,8 +43,7 @@ def build_head(url: str, method: str,
 async def __open_connection(url: str) -> tuple[StreamReader, StreamWriter]:
     url_params = destructure_url(url)
     return await open_connection(url_params['host'],
-                                 url_params['port'],
-                                 ssl=url_params["ssl"])
+                                 url_params['port'],)
 
 
 async def __close_connection(sw: StreamWriter):
@@ -59,6 +52,7 @@ async def __close_connection(sw: StreamWriter):
 
 
 async def __get_status(sr: StreamReader):
+    status_line = ""
     try:
         status = {}
         status_line = await sr.readline()
@@ -75,7 +69,6 @@ async def __get_status(sr: StreamReader):
 async def __send_request(sw: StreamWriter, url: str, method: str,
                          body: bytes = None, data_format: str = None):
     head = build_head(url, method, body, data_format)
-    print(head)
     sw.write(head)
     if body:
         sw.write(body)
@@ -91,11 +84,11 @@ async def __get_response(sr: StreamReader, data_format: str = None):
         key, value = header_line.decode().split(":", 1)
         response["headers"][key] = value.strip()
     body = await sr.read()
-    if data_format == "json":
-        content_type = response["headers"].get("Content-Type", None)
-        if content_type != "application/json":
-            raise ValueError(f"expected: application/json, get {content_type}")
-        response["body"] = json_loads(body)
+    if data_format == "json" and body:
+        try:
+            response["body"] = json_loads(body.decode())
+        except Exception as exp:
+            raise exp
     else:
         response["body"] = body
     return response
@@ -121,11 +114,13 @@ async def get(url: str, data_format: str = None):
     return await request(url, "GET", data_format=data_format)
 
 
-async def post(url: str, data, data_format: str = None):
+async def post(url: str, data: str | dict):
+    data_format = None
     if isinstance(data, dict):
+        data_format = "json"
         data = json_dumps(data).encode()
     elif isinstance(data, str):
         data = data.encode()
     elif not isinstance(data, bytes):
-        raise ValueError("wrong data type")
+        return {"status": {"code": 800}, "error": "wrong data type"}
     return await request(url, "POST", data, data_format=data_format)

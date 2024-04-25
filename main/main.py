@@ -2,7 +2,7 @@ import gc
 
 from config import Config
 from wlan import Wlan
-from solutions.ecomax_simple_async import Ecomax
+from http_client import get, post
 
 from asyncio import start_server, StreamReader, StreamWriter, sleep
 from asyncio import run as asyncio_run, create_task
@@ -16,15 +16,25 @@ from gc import mem_free
 server_mode = False
 
 
-async def secondary_coroutine():
+async def secondary_coroutine(wlan: Wlan):
     b_led = Pin(2, Pin.OUT)
     print("secondary enter")
     while True:
         print(f"free: {mem_free()} B")
         b_led.value(1)
-        await sleep(1)
+        if wlan.wifi.isconnected():
+            result = await get("https://192.168.0.107:45455/api/modules", data_format="json")
+            print(result)
+        await sleep(2)
         b_led.value(0)
-        await sleep(1)
+        await sleep(2)
+        b_led.value(1)
+        if wlan.wifi.isconnected():
+            result = await post("https://192.168.0.107:45455/api/modules", {"value": "HelloThere"})
+            print(result)
+        await sleep(2)
+        b_led.value(0)
+        await sleep(2)
 
 
 async def handle_connection(reader: StreamReader, writer: StreamWriter,
@@ -74,15 +84,16 @@ async def handle_connection(reader: StreamReader, writer: StreamWriter,
         ssid = json_data["wifiSsid"]
         password = json_data["wifiPassword"]
         network_list = config.get("networks")
-
-        for index, n in enumerate(network_list):
-            if n["ssid"] == ssid:
-                n["password"] = password
-                break
-            if index == len(network_list) - 1:
-                network_list.append({"ssid": ssid, "password": password})
-                break
-
+        if network_list:
+            for index, n in enumerate(network_list):
+                if n["ssid"] == ssid:
+                    n["password"] = password
+                    break
+                if index == len(network_list) - 1:
+                    network_list.append({"ssid": ssid, "password": password})
+                    break
+        else:
+            network_list = [{"ssid": ssid, "password": password}]
         config.set("networks", network_list)
         server_mode = False
         wlan.wifi_connect(ssid, password)
@@ -93,13 +104,15 @@ async def handle_connection(reader: StreamReader, writer: StreamWriter,
 
 
 async def main():
+    ssid = "TP-Link-29"
+    password = "ac41.E9lz77"
     global server_mode
-
-    task = create_task(secondary_coroutine())
-
     wlan = Wlan()
+    wlan.wifi_connect(ssid, password)
     config = Config("config.json")
     server = None
+
+    task = create_task(secondary_coroutine(wlan))
 
     led = Pin(14, Pin.OUT)
     button = Pin(27, Pin.IN)
