@@ -1,8 +1,6 @@
-import gc
-
 from config import Config
 from wlan import Wlan
-from http_client import get, post
+import server
 
 from asyncio import start_server, StreamReader, StreamWriter, sleep
 from asyncio import run as asyncio_run, create_task
@@ -11,30 +9,36 @@ from json import dumps as json_dumps
 
 from machine import Pin
 from os import uname
-from gc import mem_free
+from gc import mem_free, mem_alloc, collect as gc_collect
 
 server_mode = False
 
 
-async def secondary_coroutine(wlan: Wlan):
+async def secondary_coroutine(wlan: Wlan, config: Config):
+    address = "https://192.168.0.107:45455/api/modules"
     b_led = Pin(2, Pin.OUT)
     print("secondary enter")
     while True:
         print(f"free: {mem_free()} B")
         b_led.value(1)
         if wlan.wifi.isconnected():
-            result = await get("https://192.168.0.107:45455/api/modules", data_format="json")
-            print(result)
+            messages = {"deviceId": config.get("deviceId"),
+                        "deviceName": config.get("deviceName"),
+                        "freeMemory": mem_free(),
+                        "allocatedMemory": mem_alloc()}
+            response = await server.send_report(config.get("serverAddress"), messages)
+            print(response)
         await sleep(2)
         b_led.value(0)
         await sleep(2)
         b_led.value(1)
         if wlan.wifi.isconnected():
-            result = await post("https://192.168.0.107:45455/api/modules", {"value": "HelloThere"})
-            print(result)
+            data = await server.get_data(address)
+            print(data)
         await sleep(2)
         b_led.value(0)
         await sleep(2)
+        gc_collect()
 
 
 async def handle_connection(reader: StreamReader, writer: StreamWriter,
@@ -65,22 +69,21 @@ async def handle_connection(reader: StreamReader, writer: StreamWriter,
                     networks.append(n[0].decode())
             networks_string = ",".join(networks)
 
-            response = {"deviceId": config.get("deviceId"),
+            response = {"header": "getInfo",
+                        "deviceId": config.get("deviceId"),
                         "deviceName": config.get("deviceName"),
-                        "networks": networks_string,
+                        "availableNetworks": networks_string,
                         "sysName": info[0],
-                        "nodeName": info[1],
-                        "release": info[2],
-                        "version": info[3],
+                        "microPythonVersion": info[3],
                         "machine": info[4]
                         }
             writer.write(json_dumps(response).encode())
             print(f"send: {response}")
 
-    if header == "setDataAndConnect":
+    if header == "connect":
         print(f"data: {json_data}")
-        config.set("deviceId", json_data["deviceId"])
-        config.set("deviceName", json_data["deviceName"])
+        config.set_and_save("deviceId", json_data["deviceId"])
+        config.set_and_save("deviceName", json_data["deviceName"])
         ssid = json_data["wifiSsid"]
         password = json_data["wifiPassword"]
         network_list = config.get("networks")
@@ -94,9 +97,20 @@ async def handle_connection(reader: StreamReader, writer: StreamWriter,
                     break
         else:
             network_list = [{"ssid": ssid, "password": password}]
-        config.set("networks", network_list)
-        server_mode = False
+        config.set_and_save("networks", network_list)
+        config.set_and_save("serverAddress", json_data["serverAddress"])
         wlan.wifi_connect(ssid, password)
+        response = {"header": "setDataAndConnect",
+                    "status": True,
+                    "message": ""
+                    }
+        if wlan.wifi.isconnected():
+            server_mode = False
+        else:
+            response["status"] = False
+            response["message"] = "failed to connect to wifi"
+        writer.write(json_dumps(response).encode())
+        print(f"send: {response}")
 
     await writer.drain()
     writer.close()
@@ -112,7 +126,7 @@ async def main():
     config = Config("config.json")
     server = None
 
-    task = create_task(secondary_coroutine(wlan))
+    task = create_task(secondary_coroutine(wlan, config))
 
     led = Pin(14, Pin.OUT)
     button = Pin(27, Pin.IN)

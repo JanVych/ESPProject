@@ -1,4 +1,4 @@
-#from gc import mem_free, mem_alloc
+from gc import mem_free, mem_alloc
 #import platform
 #import os
 
@@ -9,5 +9,9 @@
 #print(platform.python_compiler())
 #print(platform.libc_ver())
 #print(os.uname())
+from micropython import mem_info
 
 print(help("modules"))
+print(f"free: {mem_free()} B")
+print(f"aloc: {mem_alloc()} B")
+print(mem_info(True))

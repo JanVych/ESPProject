@@ -108,8 +108,8 @@ if __name__ == "__main__":
             if request == "setDataAndConnect":
                 print("set data and connect")
                 print(json_data)
-                config.set("deviceId", json_data["deviceId"])
-                config.set("deviceName", json_data["deviceName"])
+                config.set_and_save("deviceId", json_data["deviceId"])
+                config.set_and_save("deviceName", json_data["deviceName"])
                 ssid = json_data["wifiSsid"]
                 password = json_data["wifiPassword"]
 
@@ -122,7 +122,7 @@ if __name__ == "__main__":
                         network_list.append({"ssid": ssid, "password": password})
                         break
 
-                config.set("networks", network_list)
+                config.set_and_save("networks", network_list)
                 wlan.access_point_down()
                 wlan.wifi_connect(ssid, password)
                 conn.close()

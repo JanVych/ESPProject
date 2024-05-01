@@ -33,13 +33,19 @@ class Config:
         except Exception as exp:
             print(f"error: {exp}, file:{self.file_path} ")
 
-    def clear_config(self) -> None:
-        self.__save_file("{}")
+    def clear_and_save(self) -> None:
         self.config = {}
+        self.__save_file("{}")
+
+    def save(self):
+        self.__save_file(json_dumps(self.config))
 
     def set(self, key: str, value: object) -> None:
         self.config[key] = value
-        self.__save_file(json_dumps(self.config))
+
+    def set_and_save(self, key: str, value: object) -> None:
+        self.set(key, value)
+        self.save()
 
     def get(self, key: str):
         if self.config:
